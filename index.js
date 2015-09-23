@@ -6,7 +6,8 @@
 
     var Luna = require("luna");
     var Colors = require("./CSSColors"),
-
+        CssUnit = require("./CSSConvertPropertyValueToLunaValue"),
+     geometry = Luna.Application.getDisplayProperties(),
 
     RECT =  new Luna.Math.Rect( 10, 10, 100, 100),
     RGBA = new Luna.Math.RgbColor( 0,0,0,255),
@@ -18,20 +19,29 @@
     function drawBg( element, dc ){
 
         var css = this[DCINDEX].get( element )[1];
+        var pcss = null;
+        if ( element.parent ){
+             pcss = this[DCINDEX].get( element.parent )[1];
+        }
+
 
         if ( css ) {
             var display = css.display;
 
             if ( display !== "none") {
 
-                var x = css.left;
-                var y = css.top;
-                var w = css.width;
-                var h = css.height;
-                var fs = css.fontSize || 16;
+                var cssunit = new CssUnit( pcss, 16, geometry.width, geometry.height );
 
-                var bg = this.convertColorToRGB( css.backgroundColor );
-                var color = this.convertColorToRGB( css.color );
+                var x = cssunit.convert( "left",css.left )|| 0 ;
+
+                var y = cssunit.convert( "top",css.top  )|| 0;
+                var w = cssunit.convert( "width",css.width )|| geometry.width ;
+                var h = cssunit.convert( "height",css.height )|| geometry.height;
+                var fs = cssunit.convert( "fontSize",css.fontSize )|| 16;
+
+                var bg = cssunit.convert( "backgroundColor",css.backgroundColor ) || {r:0,g:0,b:0,a:0};
+                var color = cssunit.convert( "color",css.color )|| {r:0,g:0,b:0,a:0};
+
                 var text = element.innerText();
 
 
@@ -39,6 +49,7 @@
                 // the content box unless the box is less than 0 then it should be infinite?
                 // unless overflow hidden is set - how do browsers do it?
                 var format= new Luna.Gfx.TextFormat( fs );
+
                 var texLayout = new Luna.Gfx.TextLayout( text, format, w, h );
 
                 RECT.setXY( x, y );
@@ -64,7 +75,6 @@
 
                 POINT1.setX(x);
                 POINT1.setY(y);
-
 
                 dc.drawText( texLayout, POINT1 );
 
@@ -126,15 +136,6 @@
         this[DCINDEX].set( Element, [ DrawingContext, CSS ] );
     };
 
-    EtchStrategy.prototype.convertColorToRGB = function( color ){
-
-        if ( !color ){
-            return { r: 0, g:0, b: 0, a: 0 };
-        }
-
-        var c = new Colors( color );
-        return c.toRGB();
-    };
 
     //
     //EtchStrategy.prototype.getElementsFromPoint = function( x, y ) {
