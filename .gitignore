@@ -1,3 +1,6 @@
+/Contents/*
+.DS_Store
+
 # Logs
 logs
 *.log
