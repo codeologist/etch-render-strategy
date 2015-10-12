@@ -7,7 +7,8 @@
     var Luna = require("luna");
     var Colors = require("./CSSColors"),
         CssUnit = require("./CSSConvertPropertyValueToLunaValue"),
-     geometry = Luna.Application.getDisplayProperties(),
+        StringUtil = require("etch-string-util"),
+        geometry = Luna.Application.getDisplayProperties(),
 
     RECT =  new Luna.Math.Rect( 10, 10, 100, 100),
     RGBA = new Luna.Math.RgbColor( 0,0,0,255),
@@ -16,13 +17,14 @@
 
 
 
-    function drawBg( element, dc ){
-
-        var css = this[DCINDEX].get( element )[1];
+    function draw( element, dc ){
+        //console.log("DRAW >>>",element.tagName  )
+        var css = this.getComputedStyle( element );
         var pcss = null;
         if ( element.parent ){
-             pcss = this[DCINDEX].get( element.parent )[1];
+             pcss =this.getComputedStyle( element.parent );
         }
+
 
 
         if ( css ) {
@@ -56,7 +58,7 @@
                 RECT.setSize( w, h );
 
                 // posindex.set( element, {x:x,y:y,w:w,h:h});
-
+                console.log("*---->",bg)
                 RGBA.setRed(bg.r);
                 RGBA.setGreen(bg.g);
                 RGBA.setBlue(bg.b);
@@ -83,57 +85,25 @@
 
     }
 
-    function layout1( node, dc ) {
-        drawBg.call( this, node, dc );
-    }
-
-    function recursiveElementDraw( node, func ) {
-
-        var dc = this[DCINDEX].get( node )[0];
-
-        dc.beginDraw();
-
-        func.call( this, node, dc );
-
-        if ( node.childNodes ){
-
-            node.childNodes.forEach(function ( child ) {
-                if ( child.nodeType === 9 || child.nodeType === 1 ) {
-                    dc.drawDrawingContext(0, 0, recursiveElementDraw.call(this, child, func));
-                }
-            }, this);
+    EtchStrategy.prototype.getComputedStyle = function( el ) {
+        if ( el === null ){
+            return new StringUtil("font-size:16px;background-color:black;color:white;width:1920px;height:1080px;").parseCss();
         }
 
-
-        dc.endDraw();
-
-        return dc;
-
-    }
-
-
-
-
+        return el.style
+    };
 
     function EtchStrategy() {
-
         this[DCINDEX] = new WeakMap();
-
-        this.queue =[];
-
-        Array.observe( this.queue, function( changes ){
-            changes.forEach( function( change ) {
-                if (change.addedCount) {
-                    change.object.forEach( function ( element ) {
-                        this.draw.call( this, element  );
-                    }, this );
-                }
-            }, this );
-        }.bind( this ));
     }
 
-    EtchStrategy.prototype.seed = function( Element, DrawingContext, CSS ){
-        this[DCINDEX].set( Element, [ DrawingContext, CSS ] );
+    EtchStrategy.prototype.seed = function( el, CSS ){
+         if ( !this[DCINDEX].has( el ) ){
+                this[DCINDEX].set( el,  new  Luna.Gfx.DrawingContext()   );
+            }
+
+            return this[DCINDEX].get( el );
+
     };
 
 
@@ -153,20 +123,43 @@
     //    return out;
     //};
 
+    //EtchStrategy.prototype.getComputedStyle = function( el ){
+    //    return new CssPropertySet( el.style );
+    //};
 
-    EtchStrategy.prototype.drawTreeFromElement = function( el ){
-        return recursiveElementDraw.call( this, el, function( node, dc  ){
-            layout1.call(this, node, dc );
-        });
+    EtchStrategy.prototype.setRootDocument = function( element ) {
+        var dc = this.seed( element );
+        dc.beginDraw();
+        draw.call( this, element, dc );
+        dc.endDraw();
+        Luna.Application.setRoot( dc );
     };
 
-    EtchStrategy.prototype.draw = function( element ) {
-        Luna.Application.setRoot( this.drawTreeFromElement( element ) );
+    EtchStrategy.prototype.layout = function( e ) {
+        var dc,
+            element = e.target;
+
+        if ( element.childNodes ){
+            dc = this.seed( element );
+
+            dc.beginDraw();
+            draw.call( this, e.target, dc );
+            element.childNodes.forEach(function ( childElement ) {
+                if ( childElement.nodeType === 1 ) {
+                    dc.drawDrawingContext(0, 0, this.seed( childElement ) );
+                }
+            }, this);
+            dc.endDraw();
+        }
     };
 
+    EtchStrategy.prototype.draw = function( e  ) {
+        var element = e.target,
+        dc = this.seed( element );
 
-    EtchStrategy.prototype.enqueue = function( element  ) {
-        this.queue.push( element  );
+        dc.beginDraw();
+        draw.call( this, element, dc  );
+        dc.endDraw();
     };
 
     module.exports = EtchStrategy;
