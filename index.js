@@ -34,20 +34,22 @@
             return new StringUtil("font-size:16px;background-color:black;color:white;width:1920px;height:1080px;").parseCss();
         }
 
-        var css = el.style;
+        var css = {};
+
+        Object.keys( el.style ).forEach( function(key){
+            css[key]=el.style[key];
+        });
+
         var pcss = null;
 
         if ( el.parent ){
-            pcss = el.parent.style;
+            pcss = {};
+            Object.keys( el.parent.style ).forEach( function(key){
+                css[key]=el.parent.style[key];
+            });
         }
 
-        // ensure some basic defaults
-        if ( !el.style.backgroundColor ){
-            el.style.backgroundColor="black";
-        }
-        if ( !el.style.color ){
-            el.style.color="white";
-        }
+
         var cssunit = new CssUnit(pcss, 16, geometry.width, geometry.height);
 
         css.left = cssunit.convert("left", css.left) || 0;
